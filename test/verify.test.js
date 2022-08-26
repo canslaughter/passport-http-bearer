@@ -9,7 +9,7 @@ describe('verify function', function() {
     it('should authenticate request', function(done) {
       var strategy = new Strategy(function(token, cb) {
         expect(token).to.equal('mF_9.B5f-4.1JqM');
-        return cb(null, { id: '248289761001' });
+        return cb.success({ id: '248289761001' });
       });
       
       chai.passport.use(strategy)
@@ -27,7 +27,7 @@ describe('verify function', function() {
     it('should authenticate request with additional info', function(done) {
       var strategy = new Strategy(function(token, cb) {
         expect(token).to.equal('mF_9.B5f-4.1JqM');
-        return cb(null, { id: '248289761001' }, { scope: [ 'profile', 'email' ] });
+        return cb.success({ id: '248289761001' }, { scope: [ 'profile', 'email' ] });
       });
       
       chai.passport.use(strategy)
@@ -46,7 +46,7 @@ describe('verify function', function() {
       var strategy = new Strategy({ passReqToCallback: true }, function(req, token, cb) {
         expect(req.url).to.equal('/');
         expect(token).to.equal('mF_9.B5f-4.1JqM');
-        return cb(null, { id: '248289761001' }, { scope: [ 'profile', 'email' ] });
+        return cb.success({ id: '248289761001' }, { scope: [ 'profile', 'email' ] });
       });
       
       chai.passport.use(strategy)
@@ -65,9 +65,9 @@ describe('verify function', function() {
   
   describe('that does not authenticate', function() {
     
-    it('should challenge request', function(done) {
+    it('should challenge request with invalid_token', function(done) {
       var strategy = new Strategy(function(token, cb) {
-        return cb(null, false);
+        return cb.invalidToken('challenge error description', 'challenge error uri');
       });
       
       chai.passport.use(strategy)
@@ -75,16 +75,20 @@ describe('verify function', function() {
           req.headers['authorization'] = 'Bearer mF_9.B5f-4.1JqM';
         })
         .fail(function(challenge, status) {
-          expect(challenge).to.equal('Bearer realm="Users", error="invalid_token"');
-          expect(status).to.be.undefined;
+          expect(challenge).to.equal(
+            'Bearer realm="Users", error="invalid_token", '
+            + 'error_description="challenge error description", '
+            + 'error_uri="challenge error uri"'
+          );
+          expect(status).to.equal(401);
           done();
         })
         .authenticate();
-    }); // should challenge request
+    }); // should challenge request with invalid_token
     
-    it('should challenge request with explanation', function(done) {
+    it('should challenge request with insufficient_scope', function(done) {
       var strategy = new Strategy(function(token, cb) {
-        return cb(null, false, { message: 'The access token expired' });
+        return cb.insufficientScope('challenge error description', 'challenge error uri');
       });
       
       chai.passport.use(strategy)
@@ -92,16 +96,20 @@ describe('verify function', function() {
           req.headers['authorization'] = 'Bearer mF_9.B5f-4.1JqM';
         })
         .fail(function(challenge, status) {
-          expect(challenge).to.equal('Bearer realm="Users", error="invalid_token", error_description="The access token expired"');
-          expect(status).to.be.undefined;
+          expect(challenge).to.equal(
+            'Bearer realm="Users", error="insufficient_scope", '
+            + 'error_description="challenge error description", '
+            + 'error_uri="challenge error uri"'
+          );
+          expect(status).to.equal(403);
           done();
         })
         .authenticate();
-    }); // should challenge request with explanation
+    }); // should challenge request with insufficient_scope
     
-    it('should challenge request with explanation as string', function(done) {
+    it('should challenge request with custom challenge error code and http status', function(done) {
       var strategy = new Strategy(function(token, cb) {
-        return cb(null, false, 'The access token expired');
+        return cb.fail(cb.challenge('custom_code', 'challenge error description', 'challenge error uri'), 401);
       });
       
       chai.passport.use(strategy)
@@ -109,12 +117,16 @@ describe('verify function', function() {
           req.headers['authorization'] = 'Bearer mF_9.B5f-4.1JqM';
         })
         .fail(function(challenge, status) {
-          expect(challenge).to.equal('Bearer realm="Users", error="invalid_token", error_description="The access token expired"');
-          expect(status).to.be.undefined;
+          expect(challenge).to.equal(
+            'Bearer realm="Users", error="custom_code", '
+            + 'error_description="challenge error description", '
+            + 'error_uri="challenge error uri"'
+          );
+          expect(status).to.equal(401);
           done();
         })
         .authenticate();
-    }); // should challenge request with explanation as string
+    }); // should challenge request with custom challenge error code and http status
     
   }); // that does not authenticate
   
@@ -122,7 +134,7 @@ describe('verify function', function() {
     
     it('should error request', function(done) {
       var strategy = new Strategy(function(token, cb) {
-        return cb(new Error('something went wrong'));
+        return cb.error(new Error('something went wrong'));
       });
       
       chai.passport.use(strategy)

@@ -1,6 +1,22 @@
 var chai = require('chai');
 var Strategy = require('../lib/strategy');
 
+var challenges = {
+  invalid_request: {
+    zeroTokens:
+      'Bearer realm="Users", error="invalid_request", error_description="'
+      +   'Clients MUST provide one of the following methods to transmit the access_token: '
+      +     'an Authorization header with the Bearer scheme, '
+      +     'a request body with an access_token field, '
+      +     'or a query string with an access_token parameter.'
+      + '"',
+    manyTokens: 
+      'Bearer realm="Users", error="invalid_request", error_description="'
+      +   'Clients MUST NOT use more than one method to transmit the access_token in each request.'
+      + '"',
+  },
+}
+
 
 describe('Strategy', function() {
   
@@ -15,7 +31,7 @@ describe('Strategy', function() {
   
   it('should authenticate request with bearer scheme', function(done) {
     var strategy = new Strategy(function(token, cb) {
-      return cb(null, { id: '248289761001' });
+      return cb.success({ id: '248289761001' });
     });
     
     chai.passport.use(strategy)
@@ -32,7 +48,7 @@ describe('Strategy', function() {
   
   it('should authenticate request with case-insensitive bearer scheme', function(done) {
     var strategy = new Strategy(function(token, cb) {
-      return cb(null, { id: '248289761001' });
+      return cb.success({ id: '248289761001' });
     });
     
     chai.passport.use(strategy)
@@ -49,7 +65,7 @@ describe('Strategy', function() {
   
   it('should authenticate request with token in form-encoded body parameter', function(done) {
     var strategy = new Strategy(function(token, cb) {
-      return cb(null, { id: '248289761001' });
+      return cb.success({ id: '248289761001' });
     });
     
     chai.passport.use(strategy)
@@ -67,7 +83,7 @@ describe('Strategy', function() {
   
   it('should authenticate request with token in URI query parameter', function(done) {
     var strategy = new Strategy(function(token, cb) {
-      return cb(null, { id: '248289761001' });
+      return cb.success({ id: '248289761001' });
     });
     
     chai.passport.use(strategy)
@@ -90,8 +106,8 @@ describe('Strategy', function() {
     
     chai.passport.use(strategy)
       .fail(function(challenge, status) {
-        expect(challenge).to.equal('Bearer realm="example"');
-        expect(status).to.be.undefined;
+        expect(challenge).to.match(/^Bearer realm="example"/);
+        expect(status).to.equal(400);
         done();
       })
       .authenticate();
@@ -104,8 +120,8 @@ describe('Strategy', function() {
     
     chai.passport.use(strategy)
       .fail(function(challenge, status) {
-        expect(challenge).to.equal('Bearer realm="Users", scope="profile email"');
-        expect(status).to.be.undefined;
+        expect(challenge).to.match(/^Bearer realm="Users", scope="profile email"/);
+        expect(status).to.equal(400);
         done();
       })
       .authenticate();
@@ -118,8 +134,8 @@ describe('Strategy', function() {
     
     chai.passport.use(strategy)
       .fail(function(challenge, status) {
-        expect(challenge).to.equal('Bearer realm="Users", scope="profile"');
-        expect(status).to.be.undefined;
+        expect(challenge).to.match(/^Bearer realm="Users", scope="profile"/);
+        expect(status).to.equal(400);
         done();
       })
       .authenticate();
@@ -128,8 +144,8 @@ describe('Strategy', function() {
   it('should challenge request without credentials', function(done) {
     chai.passport.use(strategy)
       .fail(function(challenge, status) {
-        expect(challenge).to.equal('Bearer realm="Users"');
-        expect(status).to.be.undefined;
+        expect(challenge).to.equal(challenges.invalid_request.zeroTokens);
+        expect(status).to.equal(400);
         done();
       })
       .authenticate();
@@ -141,8 +157,8 @@ describe('Strategy', function() {
         req.headers['authorization'] = 'Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==';
       })
       .fail(function(challenge, status) {
-        expect(challenge).to.equal('Bearer realm="Users"');
-        expect(status).to.be.undefined;
+        expect(challenge).to.equal(challenges.invalid_request.zeroTokens);
+        expect(status).to.equal(400);
         done();
       })
       .authenticate();
@@ -154,8 +170,8 @@ describe('Strategy', function() {
         req.headers['authorization'] = 'Bearer2 mF_9.B5f-4.1JqM';
       })
       .fail(function(challenge, status) {
-        expect(challenge).to.equal('Bearer realm="Users"');
-        expect(status).to.be.undefined;
+        expect(challenge).to.equal(challenges.invalid_request.zeroTokens);
+        expect(status).to.equal(400);
         done();
       })
       .authenticate();
@@ -167,8 +183,8 @@ describe('Strategy', function() {
         req.headers['authorization'] = 'XBearer mF_9.B5f-4.1JqM';
       })
       .fail(function(challenge, status) {
-        expect(challenge).to.equal('Bearer realm="Users"');
-        expect(status).to.be.undefined;
+        expect(challenge).to.equal(challenges.invalid_request.zeroTokens);
+        expect(status).to.equal(400);
         done();
       })
       .authenticate();
@@ -179,7 +195,8 @@ describe('Strategy', function() {
       .request(function(req) {
         req.headers['authorization'] = 'Bearer';
       })
-      .fail(function(status) {
+      .fail(function(challenge, status) {
+        expect(challenge).to.equal(challenges.invalid_request.zeroTokens);
         expect(status).to.equal(400);
         done();
       })
@@ -193,7 +210,8 @@ describe('Strategy', function() {
         req.body = {};
         req.body.access_token = 'mF_9.B5f-4.1JqM';
       })
-      .fail(function(status) {
+      .fail(function(challenge, status) {
+        expect(challenge).to.equal(challenges.invalid_request.manyTokens);
         expect(status).to.equal(400);
         done();
       })
@@ -207,7 +225,8 @@ describe('Strategy', function() {
         req.query = {};
         req.query.access_token = 'mF_9.B5f-4.1JqM';
       })
-      .fail(function(status) {
+      .fail(function(challenge, status) {
+        expect(challenge).to.equal(challenges.invalid_request.manyTokens);
         expect(status).to.equal(400);
         done();
       })
@@ -222,7 +241,8 @@ describe('Strategy', function() {
         req.query = {};
         req.query.access_token = 'mF_9.B5f-4.1JqM';
       })
-      .fail(function(status) {
+      .fail(function(challenge, status) {
+        expect(challenge).to.equal(challenges.invalid_request.manyTokens);
         expect(status).to.equal(400);
         done();
       })
